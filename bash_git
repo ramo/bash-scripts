@@ -1,0 +1,124 @@
+#!/bin/bash
+
+# Create a git branch (local & remote) under a given parent.
+# If parent not specified tries to read parent value from 
+# RELEASE_BRANCH environment variable, if this is not set
+# creates the branch from current branch.
+gb() {
+	local parent
+	if [[ $# -lt 1 ]]; then
+		echo "Usage: gb <branch-name> [parent-branch-name (optional)]"
+		return
+	fi
+	parent=${2:-$RELEASE_BRANCH}
+	git checkout $parent 
+	git pull
+	git checkout -b $1 $parent
+	git push -u origin $1
+}
+
+
+# Open the browser with a github pull request page for the current branch
+# This function depends on the GIT_BASE_URL environment variable to get 
+# the github url. gp -h for more options.
+gp() {
+	local PROJECT SRC TARGET OPTIND c
+	while getopts 'p:s:t:h' c
+	do
+		case $c in
+			p) PROJECT=$OPTARG ;;
+			s) SRC=$OPTARG ;;
+			t) TARGET=$OPTARG ;;
+			h) echo "Usage: gp [ -p PROJECT ] [ -s SRC ] [ -t TARGET ]"; return 
+		esac
+	done
+	
+	if [ -z "$SRC" ]; then
+		SRC=`git branch | awk '/\*/ {print $NF}'`
+	fi
+
+	if [ -z "$TARGET" ]; then
+		TARGET=$RELEASE_BRANCH
+	fi
+
+	if [ -z "$PROJECT" ]; then
+		PROJECT=`git config --get remote.origin.url | cut -d'/' -f2 | cut -d'.' -f1`
+	fi
+
+	open  "$GIT_BASE_URL/$PROJECT/compare/$TARGET...$SRC?expand=1"
+}
+
+
+# git commit with message as task id and title from JIRA.
+# Custom commit message also can be appended. 
+# This depends on the jira_info command (which is a python module by me)
+gcm() {
+	local task_id task_description cm ccm OPTIND
+	while getopts 'm:h' c
+	do
+		case $c in
+			m) ccm=$OPTARG ;;
+			h) echo "Usage: gcm [ -m custom message ]"; return 
+		esac
+	done
+
+	task_id=`git branch | awk '/\*/ {print $NF}' | cut -d- -f1-2 | tr '[a-z]' '[A-Z]'`
+	task_description=`jira_info $task_id`
+	cm="$task_id $task_description"
+	if [ -n "$ccm" ]; then
+		cm="$cm - $ccm"
+	fi
+	git commit -m "$cm"
+}
+
+
+# Cleaning local git workspace by deleting all the local branches.
+# This will not delete the current branch. Deletes only the pattern 
+# provided by PROJECT_PREFIX environment variable
+glc() {
+	echo "Deleting only the local git branches..."
+	for i in `git branch | awk '!/\*/ && /$PROJECT_PREFIX/ {print $NF}'`; do
+		git branch -D $i
+	done
+	echo "Done"
+}
+
+# Delete local and remote branch
+gbd() {
+	if [[ $# != 1 ]]; then
+		echo "Usage: gbd <branch-name>"
+		return
+	fi
+	echo "Caution:: Deleting the branch $1 ..."
+	git checkout master
+	git branch -D $1 
+	git push origin --delete $1
+}
+
+# Delete local and remote tag
+gtd() {
+	if [[ $# != 1 ]]; then
+		echo "Usage: gtd <tag-name>"
+		return
+	fi
+	echo "Caution:: Deleting the tag $1 ..."
+	git push --delete origin $1
+	git tag --delete $1 
+}
+
+##### Git aliases ######
+
+gitt() {
+	echo "Git alias init"
+	alias s="git status"
+	alias b="git branch"
+	alias bv="git branch -vv"
+	alias d="git diff"
+	alias dc="git diff --cached"
+	alias gl="git log --graph --oneline --all"
+	alias glist='for ref in $(git for-each-ref --sort=-committerdate --format="%(refname)" refs/heads/ refs/remotes ); do git log -n1 $ref --pretty=format:"%Cgreen%cr%Creset %C(yellow)%d%Creset %C(bold blue)<%an>%Creset%n" | cat ; done | awk '"'! a["'$0'"]++'"
+}
+##### End of Git #######
+
+
+

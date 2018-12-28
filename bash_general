@@ -1,0 +1,29 @@
+#!/bin/bash
+
+# curl equivalent for wget
+wget() {
+	file_name=`echo $1 | awk -F "/" '{print $NF}'`
+	curl -L -o $file_name $1
+}
+
+# Perform a command on each line of a file
+rep() {
+	if [[ $# != 2 ]]; then
+		echo "Usage: rep <cmd> <file>"
+		return
+	fi
+
+	if [[ ! -f $2 ]]; then
+		echo "$2 should be a valid file" 
+		return
+	fi
+ 
+	if [[ `command -v $1` -ne "$1" ]]; then
+		echo "$1 should be a valid executable" 
+		return
+	fi
+
+	while read i; do
+		$1 $i	
+	done < $2	
+}
