@@ -77,8 +77,28 @@ gcm() {
 # provided by PROJECT_PREFIX environment variable
 glc() {
 	echo "Deleting only the local git branches..."
-	for i in `git branch | awk '!/\*/ && /$PROJECT_PREFIX/ {print $NF}'`; do
+	for i in `git branch | awk -v p="$PROJECT_PREFIX" '$0 ~ p && !/\*/ {print $NF}'`; do
 		git branch -D $i
+	done
+	echo "Done"
+}
+
+# Caution: This function deletes all the remote and local branches 
+# identified by PROJECT_PREFIX environment variable.
+gbc() {
+	local c
+	echo "Deleting git branches (both remote and local) with $PROJECT_PREFIX identifier"
+	echo "Are you sure? (y/n)"
+	read c
+	if [ $c != "y" ];then
+		echo "No operation done. quiting..."
+		return
+	fi
+	echo "Started deletion process..."
+	git checkout master
+	for i in `git remote show origin | awk -v p="$PROJECT_PREFIX" '$0 ~ p  {print $1}' | sort | uniq`; do
+		git branch -D $i
+		git push origin --delete $i
 	done
 	echo "Done"
 }

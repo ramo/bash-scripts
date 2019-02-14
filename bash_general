@@ -17,8 +17,9 @@ rep() {
 		echo "$2 should be a valid file" 
 		return
 	fi
- 
-	if [[ `command -v $1` -ne "$1" ]]; then
+
+	command -v $1
+	if [[ $? -ne 0 ]]; then
 		echo "$1 should be a valid executable" 
 		return
 	fi
