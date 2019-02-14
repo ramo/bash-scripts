@@ -10,6 +10,10 @@ alias dl="docker container ls"
 
 # random
 alias p='ps -ef | grep java | grep -iv idea | grep -iv eclipse'
+alias n='sudo nginx'
+alias ns='sudo nginx -s stop'
+alias m='mysqld > /dev/null 2>&1 &'
+alias ms='mysqladmin -uroot -proot shutdown'
 
 # activated on invocation of tomcat command in the shell
 tomcat() {
