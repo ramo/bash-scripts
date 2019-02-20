@@ -45,7 +45,17 @@ gp() {
 		PROJECT=`git config --get remote.origin.url | cut -d'/' -f2 | cut -d'.' -f1`
 	fi
 
-	open  "$GIT_BASE_URL/$PROJECT/compare/$TARGET...$SRC?expand=1"
+	case `uname -s` in
+		Darwin)
+			open  "$GIT_BASE_URL/$PROJECT/compare/$TARGET...$SRC?expand=1"
+			;;
+		Linux)
+			xdg-open  "$GIT_BASE_URL/$PROJECT/compare/$TARGET...$SRC?expand=1"
+			;;
+		*)
+			echo "Can't open browser. Goto $GIT_BASE_URL/$PROJECT/compare/$TARGET...$SRC?expand=1"
+			;;
+	esac
 }
 
 
