@@ -2,7 +2,7 @@
 
 # Create a git branch (local & remote) under a given parent.
 # If parent not specified tries to read parent value from 
-# RELEASE_BRANCH environment variable, if this is not set
+# DEFAULT_PARENT_BRANCH environment variable, if this is not set
 # creates the branch from current branch.
 gb() {
 	local parent
@@ -10,7 +10,7 @@ gb() {
 		echo "Usage: gb <branch-name> [parent-branch-name (optional)]"
 		return
 	fi
-	parent=${2:-$RELEASE_BRANCH}
+	parent=${2:-$DEFAULT_PARENT_BRANCH}
 	git checkout $parent 
 	git pull
 	git checkout -b $1 $parent
@@ -38,7 +38,7 @@ gp() {
 	fi
 
 	if [ -z "$TARGET" ]; then
-		TARGET=$RELEASE_BRANCH
+		TARGET=$DEFAULT_PARENT_BRANCH
 	fi
 
 	if [ -z "$PROJECT" ]; then
