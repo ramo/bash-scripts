@@ -132,8 +132,8 @@ gtd() {
 		return
 	fi
 	echo "Caution:: Deleting the tag $1 ..."
-	git push --delete origin $1
-	git tag --delete $1 
+	git tag -d $1
+	git push origin :refs/tags/$1
 }
 
 ##### Git aliases ######
