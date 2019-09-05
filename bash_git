@@ -42,7 +42,7 @@ gp() {
 	fi
 
 	if [ -z "$PROJECT" ]; then
-		PROJECT=`git config --get remote.origin.url | cut -d'/' -f2 | cut -d'.' -f1`
+		PROJECT=`git config --get remote.origin.url | awk -F '/' '{print $NF}' | cut -d\. -f1`
 	fi
 
 	case `uname -s` in
@@ -84,20 +84,20 @@ gcm() {
 
 # Cleaning local git workspace by deleting all the local branches.
 # This will not delete the current branch. Deletes only the pattern 
-# provided by PROJECT_PREFIX environment variable
+# provided by PROJECT_PREFIX_REGEX environment variable
 glc() {
 	echo "Deleting only the local git branches..."
-	for i in `git branch | awk -v p="$PROJECT_PREFIX" '$0 ~ p && !/\*/ {print $NF}'`; do
+	for i in `git branch | awk -v p="$PROJECT_PREFIX_REGEX" '$0 ~ p && !/\*/ {print $NF}'`; do
 		git branch -D $i
 	done
 	echo "Done"
 }
 
 # Caution: This function deletes all the remote and local branches 
-# identified by PROJECT_PREFIX environment variable.
+# identified by PROJECT_PREFIX_REGEX environment variable.
 gbc() {
 	local c
-	echo "Deleting git branches (both remote and local) with $PROJECT_PREFIX identifier"
+	echo "Deleting git branches (both remote and local) with $PROJECT_PREFIX_REGEX identifier"
 	echo "Are you sure? (y/n)"
 	read c
 	if [ $c != "y" ];then
@@ -106,7 +106,7 @@ gbc() {
 	fi
 	echo "Started deletion process..."
 	git checkout master
-	for i in `git remote show origin | awk -v p="$PROJECT_PREFIX" '$0 ~ p  {print $1}' | sort | uniq`; do
+	for i in `git remote show origin | awk -v p="$PROJECT_PREFIX_REGEX" '$0 ~ p  {print $1}' | sort | uniq`; do
 		git branch -D $i
 		git push origin --delete $i
 	done
@@ -136,6 +136,14 @@ gtd() {
 	git push origin :refs/tags/$1
 }
 
+
+# Swith to home branch defined by GIT_HOME_BRANCH environment variable.
+# and pull the latest changes.
+gh() {
+	git checkout $GIT_HOME_BRANCH
+	git pull
+}
+
 ##### Git aliases ######
 
 gitt() {
@@ -147,6 +155,7 @@ gitt() {
 	alias dc="git diff --cached"
 	alias gl="git log --graph --oneline --all"
 	alias glist='for ref in $(git for-each-ref --sort=-committerdate --format="%(refname)" refs/heads/ refs/remotes ); do git log -n1 $ref --pretty=format:"%Cgreen%cr%Creset %C(yellow)%d%Creset %C(bold blue)<%an>%Creset%n" | cat ; done | awk '"'! a["'$0'"]++'"
+	alias grblist='for branch in `git branch -r | grep -v HEAD`;do echo -e `git show --format="%ci %cr" $branch | head -n 1` \\t$branch; done | sort -r'
 }
 ##### End of Git #######
 
