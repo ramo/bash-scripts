@@ -13,8 +13,8 @@ gb() {
 	parent=${2:-$DEFAULT_PARENT_BRANCH}
 	git checkout $parent 
 	git pull
-	git checkout -b $1 $parent
-	git push -u origin $1
+	git checkout -b $1 refs/heads/$parent
+	git push -u origin refs/heads/$1
 }
 
 
