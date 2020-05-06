@@ -4,21 +4,11 @@
 # See https://stedolan.github.io/jq/ for installing jq tool.
 # JSON reponse from GitHub rest API. Below environment variables need to
 # be configured for the tool to function.
-# GITHUB_ACCOUNT - Organization or Username of the GitHub account.
-# GITHUB_API_URL - Need to be changed, if you have enterprise account. 
-# 				   Otherwise default value is fine.
+# GITHUB_API_URL - GitHub REST api URL 
 # TOKEN_DEV_OPS - GitHub token of main DevOps account
 # TOKEN_DEV_OPS_1 - GitHub token of subordinate DevOps account-1
 # TOKEN_DEV_OPS_2 - GitHub token of subordinate DevOps account-2
 # 
-
-
-export GITHUB_ACCOUNT=
-export TOKEN_DEV_OPS=
-export TOKEN_DEV_OPS_1=
-export TOKEN_DEV_OPS_2=
-
-export GITHUB_API_URL="https://api.github.com/repos/$GITHUB_ACCOUNT"
 
 auto_merge() {
 	local project_name source_branch target_branch source_helper_branch target_helper_branch pr_url
