@@ -18,21 +18,37 @@ gb() {
 }
 
 
-# Open the browser with a github pull request page for the current branch
-# This function depends on the GIT_BASE_URL environment variable to get 
-# the github url. gp -h for more options.
+# gp - GitHub Pull Request creation cli tool.
+# gp -h for more options.
+# environment variables to configure the behavior and its default values.
+# GIT_BASE_URL - https://github.com 
+# DEFAULT_PARENT_BRANCH - master
+# DEFAULT_PR_LABEL - '' (Not defined by default)
+# DEFAULT_PR_TITLE_PROVIDER - '' (Not defined by default) 
+#							- This should be a method which receives SRC branch 
+# 							  as an argument and should return a title for the PR
+# 
 gp() {
-	local PROJECT SRC TARGET OPTIND c
+	local ORG PROJECT SRC TARGET OPTIND c git_url pr_title
 	while getopts 'p:s:t:h' c
 	do
 		case $c in
+			o) ORG=$OPTARG ;;
 			p) PROJECT=$OPTARG ;;
 			s) SRC=$OPTARG ;;
 			t) TARGET=$OPTARG ;;
-			h) echo "Usage: gp [ -p PROJECT ] [ -s SRC ] [ -t TARGET ]"; return 
+			h) echo "Usage: gp [-o ORG] [ -p PROJECT ] [ -s SRC ] [ -t TARGET ]"; return 
 		esac
 	done
-	
+
+	if [ -z "$GIT_BASE_URL" ]; then
+		GIT_BASE_URL="https://github.com"
+	fi
+
+	if [ -z "$DEFAULT_PARENT_BRANCH" ]; then
+		DEFAULT_PARENT_BRANCH="master"
+	fi
+
 	if [ -z "$SRC" ]; then
 		SRC=`git branch | awk '/\*/ {print $NF}'`
 	fi
@@ -45,20 +61,31 @@ gp() {
 		PROJECT=`git config --get remote.origin.url | awk -F '/' '{print $NF}' | cut -d\. -f1`
 	fi
 
+	if [ -z "$ORG" ]; then
+		ORG=`git config --get remote.origin.url | awk '{print substr($1, match($1,":.+\/")+1, RLENGTH-2)}'`
+	fi
+
+	if [ "$DEFAULT_PR_TITLE_PROVIDER" ]; then
+		pr_title=`$DEFAULT_PR_TITLE_PROVIDER $SRC`
+	fi
+
+	git_url="$GIT_BASE_URL/$ORG/$PROJECT/compare/$TARGET...$SRC?expand=1&label=$DEFAULT_PR_LABEL&title=$pr_title"
+
 	case `uname -s` in
 		Darwin)
-			open  "$GIT_BASE_URL/$PROJECT/compare/$TARGET...$SRC?expand=1"
+			open $git_url
 			;;
 		Linux)
-			xdg-open  "$GIT_BASE_URL/$PROJECT/compare/$TARGET...$SRC?expand=1"
+			xdg-open $git_url
 			;;
 		*)
-			echo "Can't open browser. Goto $GIT_BASE_URL/$PROJECT/compare/$TARGET...$SRC?expand=1"
+			echo "Can't open browser. Goto $git_url"
 			;;
 	esac
 }
 
 
+# Deprecated
 # git commit with message as task id and title from JIRA.
 # Custom commit message also can be appended. 
 # This depends on the jira_info command (which is a python module by me)
@@ -155,7 +182,7 @@ gitt() {
 	alias dc="git diff --cached"
 	alias gl="git log --graph --oneline --all"
 	alias glist='for ref in $(git for-each-ref --sort=-committerdate --format="%(refname)" refs/heads/ refs/remotes ); do git log -n1 $ref --pretty=format:"%Cgreen%cr%Creset %C(yellow)%d%Creset %C(bold blue)<%an>%Creset%n" | cat ; done | awk '"'! a["'$0'"]++'"
-	alias grblist='for branch in `git branch -r | grep -v HEAD`;do echo -e `git show --format="%ci %cr" $branch | head -n 1` \\t$branch; done | sort -r'
+	alias grblist='git fetch origin >/dev/null 2>/dev/null && for branch in `git branch -r | grep -v HEAD`;do echo -e `git show --format="%ci %cr" $branch | head -n 1` \\t$branch; done | sort -r'
 }
 ##### End of Git #######
 

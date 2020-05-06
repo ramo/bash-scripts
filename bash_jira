@@ -1,0 +1,21 @@
+#!/bin/bash
+
+# Most of the below utilites depends on the "jq" tool for parsing the 
+# See https://stedolan.github.io/jq/ for installing jq tool.
+# JSON reponse from JIRA rest API. Below environment variables need to
+# be configured for the tool to function.
+# JIRA_USERNAME - Email id of the JIRA account
+# JIRA_TOKEN - JIRA api token for the user account
+# JIRA_URL - JIRA enterprise cloud URL
+
+# Helper method to get the JIRA issue title for given issue id. 
+jira_get_issue_title() {
+	if [[ $# -ne 1 ]]; then
+		echo "Usage: jira_get_issue_title <issue-id>"
+		return
+	fi
+
+	curl -s --user "$JIRA_USERNAME:$JIRA_TOKEN" $JIRA_URL/rest/api/3/issue/$1 | jq -r '.fields.summary'
+}
+
+
