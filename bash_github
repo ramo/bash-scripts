@@ -54,7 +54,7 @@ create_branch() {
 	url="$GITHUB_API_URL/$project_name/git/refs"
 
 	curl -s -X POST -H "Authorization: token $TOKEN_DEV_OPS" -H "Content-Type: application/json" \
-	"$url" -d "{\"ref\": \"refs/heads/$branch_name\", \"sha\": \"$parent_sha\"}"
+	"$url" -d "{\"ref\": \"refs/heads/$branch_name\", \"sha\": \"$parent_sha\"}" > /dev/null
 }
 
 
@@ -95,7 +95,6 @@ approve_pr() {
 	curl -s -X POST -H "Authorization: token $TOKEN_DEV_OPS_1" -H "Content-Type: application/json" "$pr_url/reviews" -d "$pr_approve_payload" > /dev/null
 	curl -s -X POST -H "Authorization: token $TOKEN_DEV_OPS_2" -H "Content-Type: application/json" "$pr_url/reviews" -d "$pr_approve_payload" > /dev/null
 
-	echo "Providng success status context for jenkinsci/pr-merge"
 	status_url=`curl -s -X GET -H "Authorization: token $TOKEN_DEV_OPS" -H "Content-Type: application/json" "$pr_url" | jq -r '._links.statuses.href'`
 	curl -s -X POST -H "Authorization: token $TOKEN_DEV_OPS" -H "Content-Type: application/json" "$status_url" -d "$status_approve_payload" > /dev/null
 }
