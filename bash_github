@@ -40,7 +40,8 @@ _auto_merge() {
 		return 1
 	fi
 
-	approve_pr $pr_url && merge_pr $pr_url
+	is_protected_branch $project_name $target_branch && approve_pr $pr_url
+	merge_pr $pr_url
 }
 
 
@@ -82,6 +83,15 @@ has_merge_conflicts() {
 	pr_url=$1
 	m_state=`curl -s -X GET -H "Authorization: token $TOKEN_DEV_OPS" -H "Content-Type: application/json" "$pr_url" | jq -r '.mergeable_state'`
 	[[ $m_state == "dirty" ]]
+}
+
+is_protected_branch() {
+	local url project_name branch_name result
+	project_name=$1
+	branch_name=$2
+	url="$GITHUB_API_URL/$project_name/branches/$branch_name"
+	result=`curl -s -X GET -H "Authorization: token $TOKEN_DEV_OPS" -H "Content-Type: application/json" "$url" | jq -r '.protected'`
+	[[ $result == "true" ]]
 }
 
 approve_pr() {
