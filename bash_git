@@ -66,10 +66,10 @@ gp() {
 	fi
 
 	if [ "$DEFAULT_PR_TITLE_PROVIDER" ]; then
-		pr_title=`$DEFAULT_PR_TITLE_PROVIDER $SRC`
+		pr_title=`$DEFAULT_PR_TITLE_PROVIDER $SRC | sed 's/\ /+/g'`
 	fi
 
-	git_url="$GIT_BASE_URL/$ORG/$PROJECT/compare/$TARGET...$SRC?expand=1&label=$DEFAULT_PR_LABEL&title=$pr_title"
+	git_url="$GIT_BASE_URL/$ORG/$PROJECT/compare/$TARGET...$SRC?expand=1&labels=$DEFAULT_PR_LABEL&title=$pr_title"
 
 	case `uname -s` in
 		Darwin)
