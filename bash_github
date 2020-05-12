@@ -16,10 +16,14 @@ auto_merge() {
 	source_branch=$2
 	target_branch=$3
 	
+	echo "Merging changes from $source_branch to $target_branch in $project_name"
+
 	ts=`date +%s`
 	source_helper_branch="temp/smh-$source_branch-$ts"
 	target_helper_branch="temp/tmh-$target_branch-$ts"
 
+	echo "Create helper branches $source_helper_branch and $target_helper_branch in $project_name"
+	
 	create_branch $project_name $source_helper_branch $source_branch
 	create_branch $project_name $target_helper_branch $target_branch
 
@@ -28,15 +32,18 @@ auto_merge() {
 }
 
 _auto_merge() {
-	local project_name source_branch target_branch pr_url
+	local project_name source_branch target_branch pr_url web_pr_url
 	project_name=$1
 	source_branch=$2
 	target_branch=$3
 
+	echo "Merging $source_branch to $target_branch in $project_name"
+
 	pr_url=`create_pr $project_name $source_branch $target_branch "[DevOps] Auto PR for merging $source_branch to $target_branch"`
 	if has_merge_conflicts $pr_url; then
-		echo "PR has conflicts: $pr_url"
-		$pr_url >> conflicts_to_review
+		web_pr_url=`print_web_pr_url $pr_url`
+		echo "PR has conflicts: $web_pr_url"
+		echo $web_pr_url >> conflicts_to_review
 		return 1
 	fi
 
@@ -101,7 +108,7 @@ approve_pr() {
 	pr_approve_payload="{\"body\": \"Auto approved by DevOps.\", \"event\": \"APPROVE\"}"
 	status_approve_payload="{\"state\": \"success\", \"context\": \"jenkinsci/pr-merge\", \"description\": \"Auto approved by DevOps.\"}"
 
-	echo "Approving the PR = $pr_url"
+	echo "Approving the PR = `print_web_pr_url $pr_url`"
 	curl -s -X POST -H "Authorization: token $TOKEN_DEV_OPS_1" -H "Content-Type: application/json" "$pr_url/reviews" -d "$pr_approve_payload" > /dev/null
 	curl -s -X POST -H "Authorization: token $TOKEN_DEV_OPS_2" -H "Content-Type: application/json" "$pr_url/reviews" -d "$pr_approve_payload" > /dev/null
 
@@ -112,8 +119,12 @@ approve_pr() {
 merge_pr() {
 	local pr_url
 	pr_url=$1
-	echo "Merging the PR = $pr_url"
+	echo "Merging the PR = `print_web_pr_url $pr_url`"
 	response_status=`curl -s -X PUT -I -H "Authorization: token $TOKEN_DEV_OPS" "$pr_url/merge" | awk 'NR==1{print $2}'`
+}
+
+print_web_pr_url() {
+	echo $pr_url | sed 's/api\.//' | sed 's/repos\///' | sed 's/pulls/pull/'
 }
 
 
