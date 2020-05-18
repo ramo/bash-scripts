@@ -15,7 +15,22 @@ jira_get_issue_title() {
 		return
 	fi
 
-	curl -s --user "$JIRA_USERNAME:$JIRA_TOKEN" $JIRA_URL/rest/api/3/issue/$1 | jq -r '.fields.summary'
+	jira_get_issue_json $1 | jq -r '.fields.summary'
+}
+
+
+jira_get_parent_issue_key() {
+	if [[ $# -ne 1 ]]; then
+		echo "Usage: jira_get_parent_issue_key <task-id>"
+		return
+	fi
+
+	jira_get_issue_json $1 | jq -r '.fields.parent.key'
+}
+
+
+jira_get_issue_json() {
+	curl -s --user "$JIRA_USERNAME:$JIRA_TOKEN" "$JIRA_URL/rest/api/3/issue/$1"
 }
 
 
