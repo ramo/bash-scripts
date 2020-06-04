@@ -11,14 +11,21 @@
 # 
 
 safe_merge() {
-	local project_name source_branch target_branch source_helper_branch target_helper_branch pr_url
+	local project_name source_branch target_branch source_helper_branch target_helper_branch pr_url files_diff ts te
+	ts=`date +%s`
 	project_name=$1
 	source_branch=$2
 	target_branch=$3
 	
-	echo "Merging changes from $source_branch to $target_branch in $project_name"
+	echo "Checking $source_branch -> $target_branch in $project_name"
+	files_diff=`compare_git_branches $project_name $source_branch $target_branch`
+	if [[ files_diff -eq 0 ]]; then
+		echo "Nothing to merge. Skipping $source_branch -> $target_branch in $project_name"
+		return
+	fi
 
-	ts=`date +%s`
+	echo "Merging $source_branch -> $target_branch in $project_name"
+
 	source_helper_branch="temp/smh-$source_branch-$ts"
 	target_helper_branch="temp/tmh-$target_branch-$ts"
 
@@ -29,6 +36,9 @@ safe_merge() {
 
 	direct_merge $project_name $source_helper_branch $target_helper_branch &&
 		direct_merge $project_name $target_helper_branch $target_branch
+
+	te=`date +%s`
+	echo "Time taken for merging $source_branch -> $target_branch in $project_name = $((te-ts)) s"
 }
 
 direct_merge() {
@@ -40,15 +50,39 @@ direct_merge() {
 	echo "Merging $source_branch to $target_branch in $project_name"
 
 	pr_url=`create_pr $project_name $source_branch $target_branch "[DevOps] Auto PR for merging $source_branch to $target_branch"`
+	if is_protected_branch $project_name $target_branch; then
+		is_pb="true"
+	else
+		is_pb="false"
+	fi
+	approve_and_merge_pr $pr_url $is_pb
+}
+
+approve_and_merge_pr() {
+	local web_pr_url pr_url is_pb
+	pr_url=$1
+	is_pb=$2
+	web_pr_url=`get_web_pr_url $pr_url`
+
+	echo "Processing PR = $pr_url and is_protected = $is_pb"
+
 	if has_merge_conflicts $pr_url; then
-		web_pr_url=`get_web_pr_url $pr_url`
 		echo "PR has conflicts: $web_pr_url"
 		echo $web_pr_url >> conflicts_to_review
 		return 1
 	fi
 
-	is_protected_branch $project_name $target_branch && approve_pr $pr_url
-	merge_pr $pr_url
+	echo "No merge conflicts for the PR: $web_pr_url"
+
+	[[ $is_pb == "true" ]] && echo "need to approve" && approve_pr $pr_url
+	
+	if merge_pr $pr_url; then
+		echo "Successfully merged $web_pr_url"
+	else
+		echo "PR has issues: $web_pr_url"
+		echo $web_pr_url >> conflicts_to_review
+		return 1
+	fi
 }
 
 
@@ -63,8 +97,7 @@ create_branch() {
 	parent_sha=`get_branch_sha $project_name $parent_branch`
 	url="$GITHUB_API_URL/$project_name/git/refs"
 
-	curl -s -X POST -H "Authorization: token $TOKEN_DEV_OPS" -H "Content-Type: application/json" \
-	"$url" -d "{\"ref\": \"refs/heads/$branch_name\", \"sha\": \"$parent_sha\"}" > /dev/null
+	call_github -u $url -m POST -p  "{\"ref\": \"refs/heads/$branch_name\", \"sha\": \"$parent_sha\"}" > /dev/null
 }
 
 
@@ -73,7 +106,7 @@ get_branch_sha() {
 	project_name=$1
 	branch_name=$2
 	url="$GITHUB_API_URL/$project_name/git/ref/heads/$branch_name"
-	curl -s -X GET -H "Authorization: token $TOKEN_DEV_OPS" -H "Content-Type: application/json" "$url" | jq -r '.object.sha'
+	call_github -u $url | jq -r '.object.sha'
 }
 
 
@@ -83,14 +116,14 @@ create_pr() {
 	source=$2
 	target=$3
 	title=$4
-	curl -s -X POST -H "Authorization: token $TOKEN_DEV_OPS" -H "Content-Type: application/json" \
-	"$GITHUB_API_URL/$project_name/pulls" -d "{\"title\": \"$title\", \"body\": \"$title\", \"head\": \"$source\", \"base\": \"$target\"}" | jq -r '.url'
+	call_github -u "$GITHUB_API_URL/$project_name/pulls" -m POST \
+		-p "{\"title\": \"$title\", \"body\": \"$title\", \"head\": \"$source\", \"base\": \"$target\"}" | jq -r '.url'
 }
 
 has_merge_conflicts() {
 	local pr_url m_state;
 	pr_url=$1
-	m_state=`curl -s -X GET -H "Authorization: token $TOKEN_DEV_OPS" -H "Content-Type: application/json" "$pr_url" | jq -r '.mergeable_state'`
+	m_state=`call_github -u $pr_url | jq -r '.mergeable_state'`
 	[[ $m_state == "dirty" ]]
 }
 
@@ -99,7 +132,7 @@ is_protected_branch() {
 	project_name=$1
 	branch_name=$2
 	url="$GITHUB_API_URL/$project_name/branches/$branch_name"
-	result=`curl -s -X GET -H "Authorization: token $TOKEN_DEV_OPS" -H "Content-Type: application/json" "$url" | jq -r '.protected'`
+	result=`call_github -u $url | jq -r '.protected'`
 	[[ $result == "true" ]]
 }
 
@@ -111,27 +144,20 @@ approve_pr() {
 	status_approve_payload="{\"state\": \"success\", \"context\": \"jenkinsci/pr-merge\", \"description\": \"Auto approved by DevOps.\"}"
 
 	echo "Approving the PR = `get_web_pr_url $pr_url`"
-	curl -s -X POST -H "Authorization: token $TOKEN_DEV_OPS_1" -H "Content-Type: application/json" "$pr_url/reviews" -d "$pr_approve_payload" > /dev/null
-	curl -s -X POST -H "Authorization: token $TOKEN_DEV_OPS_2" -H "Content-Type: application/json" "$pr_url/reviews" -d "$pr_approve_payload" > /dev/null
+	
+	call_github -u "$pr_url/reviews" -p "$pr_approve_payload" -m POST  -a $TOKEN_DEV_OPS_1 > /dev/null
+	call_github -u "$pr_url/reviews" -p "$pr_approve_payload" -m POST  -a $TOKEN_DEV_OPS_2 > /dev/null
 
-	status_url=`curl -s -X GET -H "Authorization: token $TOKEN_DEV_OPS" -H "Content-Type: application/json" "$pr_url" | jq -r '._links.statuses.href'`
-	curl -s -X POST -H "Authorization: token $TOKEN_DEV_OPS" -H "Content-Type: application/json" "$status_url" -d "$status_approve_payload" > /dev/null
+	status_url=`call_github -u $pr_url  | jq -r '._links.statuses.href'`
+	call_github -u $status_url -p $status_approve_payload -m POST > /dev/null
 }
 
 merge_pr() {
-	local pr_url
+	local pr_url response_code
 	pr_url=$1
 	echo "Merging the PR = `get_web_pr_url $pr_url`"
-	response_status=`curl -s -X PUT -I -H "Authorization: token $TOKEN_DEV_OPS" "$pr_url/merge" | awk 'NR==1{print $2}'`
-}
-
-get_web_pr_url() {
-	echo $pr_url | sed 's/api\.//' | sed 's/repos\///' | sed 's/pulls/pull/'
-}
-
-get_pr_url() {
-	local project_name pr_number
-	echo "$GITHUB_API_URL/$project_name/pulls/$pr_number"
+	response_code=`call_github -u "$pr_url/merge" -m PUT -f '-s -I' | awk 'NR==1{print $2}'`
+	[[ $response_code == "200" ]]
 }
 
 add_pr_labels() {
@@ -144,8 +170,85 @@ add_pr_labels() {
 	b=`echo $a | sed 's/\ /,/g'`
 	payload="{\"labels\": ["$b"]}"
 
-	curl -s -X POST -H "Authorization: token $TOKEN_DEV_OPS" -H "Content-Type: application/json" "$url" -d "$payload" > /dev/null 
+	call_github -u $url -p $payload -m POST > /dev/null
 }
+
+compare_git_branches() {
+	local project_name source target url
+	project_name=$1
+	source=$2
+	target=$3
+	url="$GITHUB_API_URL/$project_name/compare/$target...$source"
+	call_github -u $url | jq -r '.files | length'	
+}
+
+get_web_pr_url() {
+	echo $pr_url | sed 's/api\.//' | sed 's/repos\///' | sed 's/pulls/pull/'
+}
+
+get_pr_url() {
+	local project_name pr_number web_pr_url OPTIND
+	while getopts 'p:n:u:h' c
+	do
+		case $c in
+			p) project_name=$OPTARG ;;
+			n) pr_number=$OPTARG ;;
+			u) web_pr_url=$OPTARG ;;
+			h) echo "Usage: get_pr_url [ -u web_pr_url ] [ -p project_name  -n pr_number ]"
+		esac
+	done
+	
+	if ! [ -z $web_pr_url ]; then
+		project_name=`echo $web_pr_url | cut -d\/ -f5`
+		pr_number=`echo $web_pr_url | cut -d\/ -f7`
+	fi
+	
+	echo "$GITHUB_API_URL/$project_name/pulls/$pr_number"
+}
+
+call_github() {
+	local url method payload delay OPTIND
+
+	while getopts 'u:m:p:d:f:a:h' c
+	do
+		case $c in
+			u) url=$OPTARG ;;
+			m) method=$OPTARG ;;
+			p) payload=$OPTARG ;;
+			d) delay=$OPTARG ;;
+			f) flags=$OPTARG ;;
+			a) auth_token=$OPTARG ;;
+			h) echo "Usage: call_github -u url [ -m method ] [ -p payload ] [ -d delay ] [ -f flags ] [ -a auth_token ]"; return 
+		esac
+	done
+
+	if [ -z $delay ]; then 
+		delay=2
+	fi
+
+	if [ -z $method ]; then
+		method='GET'
+	fi
+
+	if [ -z "$flags" ]; then
+		flags="-s"
+	fi
+
+	if [ -z $auth_token ]; then
+		auth_token="$TOKEN_DEV_OPS"
+	fi
+
+	sleep $delay
+
+	if [ -z "$payload" ]; then
+		curl $flags -X $method -H "Authorization: token $auth_token" -H "Content-Type: application/json" "$url" 
+	else
+		curl $flags -X $method -H "Authorization: token $auth_token" -H "Content-Type: application/json" "$url" -d "$payload"
+	fi
+}
+
+
+
 
 
 
