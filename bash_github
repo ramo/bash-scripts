@@ -149,7 +149,7 @@ approve_pr() {
 	call_github -u "$pr_url/reviews" -p "$pr_approve_payload" -m POST  -a $TOKEN_DEV_OPS_2 > /dev/null
 
 	status_url=`call_github -u $pr_url  | jq -r '._links.statuses.href'`
-	call_github -u $status_url -p $status_approve_payload -m POST > /dev/null
+	call_github -u $status_url -p "$status_approve_payload" -m POST > /dev/null
 }
 
 merge_pr() {
@@ -170,7 +170,7 @@ add_pr_labels() {
 	b=`echo $a | sed 's/\ /,/g'`
 	payload="{\"labels\": ["$b"]}"
 
-	call_github -u $url -p $payload -m POST > /dev/null
+	call_github -u $url -p "$payload" -m POST | jq  -r '.[].name'
 }
 
 compare_git_branches() {
