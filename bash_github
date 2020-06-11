@@ -76,7 +76,7 @@ approve_and_merge_pr() {
 
 	[[ $is_pb == "true" ]] && echo "need to approve" && approve_pr $pr_url
 	
-	if merge_pr $pr_url; then
+	if exec_inc_delay 3 10 merge_pr $pr_url; then
 		echo "Successfully merged $web_pr_url"
 	else
 		echo "PR has issues: $web_pr_url"
@@ -160,6 +160,33 @@ merge_pr() {
 	[[ $response_code == "200" ]]
 }
 
+
+exec_inc_delay() {
+	local retry delay method args inc result
+	retry=$1;shift
+	delay=$1;shift
+	method=$1;shift
+	args="$@"
+
+	inc=$delay
+	result=false
+	while : ; do
+		if $method $args; then
+			result=true
+			break
+		fi
+		retry=$(($retry-1))
+		
+		if [[ $retry -lt 0 ]]; then
+			break
+		fi
+		echo "waiting for $delay s..."
+		sleep $delay
+		delay=$(($delay+$inc))
+	done
+	$result
+}
+
 add_pr_labels() {
 	local project_name pr_number labels payload a b url
 	project_name=$1;shift
@@ -223,7 +250,7 @@ call_github() {
 	done
 
 	if [ -z $delay ]; then 
-		delay=2
+		delay=5
 	fi
 
 	if [ -z $method ]; then
