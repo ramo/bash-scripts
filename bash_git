@@ -163,6 +163,21 @@ gtd() {
 	git push origin :refs/tags/$1
 }
 
+# Point existing tag to latest commit
+gtl() {
+	if [[ $# != 1 ]]; then
+		echo "Usage: gtl <tag-name>"
+		return
+	fi
+	echo "Caution:: Deleting the existing tag locally and remotely $1 ..."
+	git tag -d $1
+	git push origin :refs/tags/$1
+	echo "Tag deleted successfully $1"
+	echo "Creating annoted tag.Add the tag message in the next line.."
+	git tag -a $1
+	git push origin $1
+}
+
 
 # Swith to home branch defined by GIT_HOME_BRANCH environment variable.
 # and pull the latest changes.
