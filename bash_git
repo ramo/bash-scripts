@@ -170,8 +170,7 @@ gtl() {
 		return
 	fi
 	echo "Caution:: Deleting the existing tag locally and remotely $1 ..."
-	git tag -d $1
-	git push origin :refs/tags/$1
+	gtd $1
 	echo "Tag deleted successfully $1"
 	echo "Creating annoted tag.Add the tag message in the next line.."
 	git tag -a $1
