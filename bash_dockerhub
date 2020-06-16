@@ -1,0 +1,64 @@
+#!/bin/bash
+
+####################################################################################
+# This tool provides cli for private dockerhub registry.
+# It depends on the "jq" tool for parsing the JSON reponse from Dockerhub rest API. 
+# See https://stedolan.github.io/jq/ for installing jq tool.
+# Below environment variables need to be configured for the tool to function.
+####################################################################################
+# DOCKERHUB_USERNAME - Dockerhub username
+# DOCKERHUB_PASSWORD - Dockerhub password
+# DOCKERHUB_REGISTRY_URL - Dockerhub hosted URL
+####################################################################################
+
+
+# main method
+dh() {
+	case $1 in 
+		repo) get_dh_repo_list;;
+		tags) get_dh_repo_tags $2;;
+		*) echo "Usage: dh repo|tags [<repo-name>]" ;;
+	esac
+}
+
+
+######### Helper methods #############################
+get_docker_auth_token() {
+	local url auth_challenge auth_url auth_scope auth_service
+	url=$1
+	auth_challenge=`curl -s -I -X GET $url | awk 'IGNORECASE = 1; /www-authenticate/ {print $0}' | awk -F 'Bearer ' '{print $2}' | awk -F ',' '{for(i=1;i<=NF;i++){print $i}}' | awk -F '=' '{print "\""$1"\":" $2}' | paste -s -d, - | awk '{printf("{%s}",$0)}'`
+	auth_url=`echo $auth_challenge | jq -r '.realm'`
+	auth_scope=`echo $auth_challenge | jq -r '.scope' | url_encode`
+	auth_service=`echo $auth_challenge | jq -r '.service' | url_encode`
+	auth_header=`echo -n "$DOCKERHUB_USERNAME:$DOCKERHUB_PASSWORD" | base64`
+	curl -s -X GET -H "Authorization: Basic $auth_header" "$auth_url?service=$auth_service&scope=$auth_scope" | jq -r '.access_token'
+}
+
+url_encode() {
+	str="${1:-$(</dev/stdin)}";
+	jq -nr --arg v "$str" '$v|@uri'
+}
+
+get_dh_resource() {
+	local url token
+	url=$1
+	token=`get_docker_auth_token "$url"`
+	curl -s -X GET -H "Authorization: Bearer $token" "$url"
+}
+
+get_dh_repo_list() {
+	local url
+	url="${DOCKERHUB_REGISTRY_URL}/v2/_catalog"
+	get_dh_resource "$url" | jq  -r '.repositories[]'
+}
+
+get_dh_repo_tags() {
+	local url repo
+	if [[ $# -eq 0 ]]; then
+		echo "Repository name required to get the tags!"
+		return
+	fi
+	repo=$1
+	url="${DOCKERHUB_REGISTRY_URL}/v2/$repo/tags/list"
+	get_dh_resource "$url" | jq -r '.tags[]'
+}
