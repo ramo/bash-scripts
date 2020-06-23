@@ -79,7 +79,7 @@ approve_and_merge_pr() {
 	if exec_inc_delay 3 10 merge_pr $pr_url; then
 		echo "Successfully merged $web_pr_url"
 	else
-		echo "PR has issues: $web_pr_url"
+		echo "Unable to merge the PR: $web_pr_url. Please check logs."
 		echo $web_pr_url >> conflicts_to_review
 		return 1
 	fi
@@ -157,7 +157,12 @@ merge_pr() {
 	pr_url=$1
 	echo "Merging the PR = `get_web_pr_url $pr_url`"
 	response_code=`call_github -u "$pr_url/merge" -m PUT -f '-s -I' | awk 'NR==1{print $2}'`
-	[[ $response_code == "200" ]]
+	if [[ $response_code == "200" ]]; then
+		true
+	else
+		echo "Merging $pr_url - response code = $response_code"
+		false
+	fi
 }
 
 
