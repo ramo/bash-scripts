@@ -1,0 +1,24 @@
+#!/bin/bash
+
+test() {
+	echo "Testing the bash functions"
+	result=`test_condition`
+	if $result; then
+		echo "0"
+	else
+		echo "1"
+	fi
+}
+
+
+test_condition() {
+	echo "Testing conditions"
+	if [[ $(($RANDOM%2)) -eq 0 ]]; then
+		true
+		return
+	else
+		false
+		return
+	fi
+	true
+}

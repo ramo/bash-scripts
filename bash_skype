@@ -1,0 +1,78 @@
+#!/bin/bash
+
+# Most of the below utilites depends on the "jq" tool for parsing the 
+# See https://stedolan.github.io/jq/ for installing jq tool.
+# JSON reponse from JIRA rest API. Below environment variables need to
+# be configured for the tool to function.
+# SKYPE_BOT_ID - Skype bot id from Azure
+# SKYPE_BOT_PASSWORD - Skype bot password from Azure
+# SKYPE_BOT_AUTH_URL - Skype bot login url 
+# SKYPE_BOT_API_URL - Skype bot service url
+# SKYPE_AUTH_TOKEN_DB - File to cache auth token for Skype bot
+
+# configure bot credentials here.
+export SKYPE_BOT_ID=
+export SKYPE_BOT_PASSWORD=
+
+export SKYPE_BOT_AUTH_URL="https://login.microsoftonline.com/botframework.com/oauth2/v2.0/token"
+export SKYPE_BOT_API_URL="https://smba.trafficmanager.net/apis"
+export SKYPE_AUTH_TOKEN_DB="/tmp/skype_get_auth_token.db"
+
+
+skype_send_chat() {
+	local conversation_id message token OPTIND choice
+	
+	while getopts 'c:m:t:h' choice
+	do
+		case $choice in
+			c) conversation_id=$OPTARG ;;
+			m) message=$OPTARG ;;
+			h) echo "Usage: skype_send_chat -c conversation_id -m message [-h]"; return 
+		esac
+	done
+
+	if [[ -z "$conversation_id" || -z "$message" ]]; then
+		skype_send_chat -h
+		return
+	fi
+
+	if ! [ -e $SKYPE_AUTH_TOKEN_DB ]; then
+		echo "Initing Skype auth token db file"
+		_skype_get_auth_token > $SKYPE_AUTH_TOKEN_DB
+	fi
+
+	token=`cat $SKYPE_AUTH_TOKEN_DB`
+	response_status=`_skype_send_message "$conversation_id" "$message" "$token"`
+
+	if [ $response_status == "401" ]; then #Unautohrized 
+		_skype_get_auth_token > $SKYPE_AUTH_TOKEN_DB
+		token=`cat $SKYPE_AUTH_TOKEN_DB`
+		response_status=`_skype_send_message "$conversation_id" "$message" "$token"`
+	fi 
+
+	if [ $response_status == "201" ]; then
+		echo "Skype message has been sent successfully."
+	else
+		echo "Something went wrong, the message is not sent. reponse code = $response_status"
+	fi
+}
+
+_skype_get_auth_token() {
+	curl -s -X POST $SKYPE_BOT_AUTH_URL -H 'Content-Type: application/x-www-form-urlencoded' \
+	--data-urlencode 'grant_type=client_credentials' \
+	--data-urlencode "client_id=$SKYPE_BOT_ID" \
+	--data-urlencode "client_secret=$SKYPE_BOT_PASSWORD" \
+	--data-urlencode 'scope=https://api.botframework.com/.default' | jq -r '.access_token'
+}
+
+_skype_send_message() {
+	local message conversation_id toekn url payload token
+	conversation_id="$1"
+	message="$2"
+	token="$3"
+	url="$SKYPE_BOT_API_URL/v3/conversations/$conversation_id/activities"
+	payload="{\"type\": \"message\", \"text\": \"$message\"}"
+	curl -s -i -X POST -H "Authorization: Bearer $token" -H "Content-Type: application/json" "$url" -d "$payload" | awk 'NR==1{print $2}'
+}
+
+

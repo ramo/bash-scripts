@@ -156,7 +156,7 @@ merge_pr() {
 	local pr_url response_code
 	pr_url=$1
 	echo "Merging the PR = `get_web_pr_url $pr_url`"
-	response_code=`call_github -u "$pr_url/merge" -m PUT -f '-s -I' | awk 'NR==1{print $2}'`
+	response_code=`call_github -u "$pr_url/merge" -m PUT -f '-s -i' | awk 'NR==1{print $2}'`
 	if [[ $response_code == "200" ]]; then
 		true
 	else

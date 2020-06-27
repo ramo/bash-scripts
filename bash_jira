@@ -21,7 +21,7 @@ jira_get_issue_title() {
 
 jira_get_parent_issue_key() {
 	if [[ $# -ne 1 ]]; then
-		echo "Usage: jira_get_parent_issue_key <task-id>"
+		echo "Usage: jira_get_parent_issue_key <issue-id>"
 		return
 	fi
 
@@ -29,8 +29,34 @@ jira_get_parent_issue_key() {
 }
 
 
+jira_get_issue_assignee() {
+	if [[ $# -ne 1 ]]; then
+		echo "Usage: jira_get_issue_assignee <issue-id>"
+		return
+	fi
+
+	jira_get_issue_json $1 | jq -r '.fields.assignee.accountId'	
+}
+
+jira_get_siblings() {
+	if [[ $# -ne 1 ]]; then
+		echo "Usage: jira_get_siblings <issue-id>"
+		return
+	fi
+
+	local parent_issue
+	parent_issue=`jira_get_parent_issue_key $1`
+
+	if ! [[ -z $parent_issue || $parent_issue == null ]]; then
+		jira_get_issue_json $parent_issue | jq  -r '.fields.subtasks[] | .key + " " + .fields.summary' 
+	fi
+}
+
 jira_get_issue_json() {
 	curl -s --user "$JIRA_USERNAME:$JIRA_TOKEN" "$JIRA_URL/rest/api/3/issue/$1"
 }
+
+
+
 
 
