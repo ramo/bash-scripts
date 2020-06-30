@@ -11,7 +11,7 @@
 # 
 
 safe_merge() {
-	local project_name source_branch target_branch source_helper_branch target_helper_branch pr_url files_diff ts te
+	local project_name source_branch target_branch source_helper_branch target_helper_branch files_diff ts te
 	ts=`date +%s`
 	project_name=$1
 	source_branch=$2
@@ -42,7 +42,7 @@ safe_merge() {
 }
 
 direct_merge() {
-	local project_name source_branch target_branch pr_url web_pr_url
+	local project_name source_branch target_branch pr_url is_pb
 	project_name=$1
 	source_branch=$2
 	target_branch=$3
@@ -76,7 +76,7 @@ approve_and_merge_pr() {
 
 	[[ $is_pb == "true" ]] && echo "need to approve" && approve_pr $pr_url
 	
-	if exec_inc_delay 3 10 merge_pr $pr_url; then
+	if exec_inc_delay 5 30 merge_pr $pr_url; then
 		echo "Successfully merged $web_pr_url"
 	else
 		echo "Unable to merge the PR: $web_pr_url. Please check logs."
@@ -137,7 +137,7 @@ is_protected_branch() {
 }
 
 approve_pr() {
-	local pr_url status_url pr_approve_payload
+	local pr_url status_url pr_approve_payload status_approve_payload
 	pr_url=$1
 	
 	pr_approve_payload="{\"body\": \"Auto approved by DevOps.\", \"event\": \"APPROVE\"}"
@@ -193,7 +193,7 @@ exec_inc_delay() {
 }
 
 add_pr_labels() {
-	local project_name pr_number labels payload a b url
+	local project_name pr_number labels payload L a b url
 	project_name=$1;shift
 	pr_number=$1;shift
 	labels="$@"
@@ -215,11 +215,11 @@ compare_git_branches() {
 }
 
 get_web_pr_url() {
-	echo $pr_url | sed 's/api\.//' | sed 's/repos\///' | sed 's/pulls/pull/'
+	echo $1 | sed 's/api\.//' | sed 's/repos\///' | sed 's/pulls/pull/'
 }
 
 get_pr_url() {
-	local project_name pr_number web_pr_url OPTIND
+	local project_name pr_number web_pr_url c OPTIND OPTARG
 	while getopts 'p:n:u:h' c
 	do
 		case $c in
@@ -239,7 +239,7 @@ get_pr_url() {
 }
 
 call_github() {
-	local url method payload delay OPTIND
+	local url method payload delay flags auth_token c OPTIND OPTARG
 
 	while getopts 'u:m:p:d:f:a:h' c
 	do
@@ -255,7 +255,7 @@ call_github() {
 	done
 
 	if [ -z $delay ]; then 
-		delay=5
+		delay=10
 	fi
 
 	if [ -z $method ]; then
