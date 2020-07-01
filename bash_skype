@@ -16,13 +16,13 @@ export SKYPE_BOT_PASSWORD=
 
 export SKYPE_BOT_AUTH_URL="https://login.microsoftonline.com/botframework.com/oauth2/v2.0/token"
 export SKYPE_BOT_API_URL="https://smba.trafficmanager.net/apis"
-export SKYPE_AUTH_TOKEN_DB="/tmp/skype_get_auth_token.db"
+export SKYPE_AUTH_TOKEN_DB="/tmp/.skype_get_auth_token.db"
 
 
 skype_send_chat() {
 	local conversation_id message token OPTIND choice
 	
-	while getopts 'c:m:t:h' choice
+	while getopts 'c:m:h' choice
 	do
 		case $choice in
 			c) conversation_id=$OPTARG ;;

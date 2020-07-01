@@ -1,0 +1,130 @@
+#!/bin/bash
+
+# Most of the below utilites depends on the "jq" tool for parsing the 
+# See https://stedolan.github.io/jq/ for installing jq tool.
+
+# Configure the below Firebase project related settings.
+
+# Web API Key of the Firebase project 
+export FIREBASE_APP_KEY=
+
+# Firebase project id
+export FIREBASE_PROJECT_ID=
+
+# Firebase project user credentials
+export FIREBASE_APP_EMAIL=
+export FIREBASE_APP_PASSWORD=
+
+export FIREBASE_AUTH_URL="https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword"
+export FIREBASE_AUTH_TOKEN_DB=/tmp/.firebase_get_auth_token.db
+export FIRESTORE_DEFAULT_DATABASE="(default)"
+export FIRESTORE_API_URL="https://firestore.googleapis.com"
+
+
+firestore_get_fields_from_collection() {
+	local OPTIND OPTARG choice collection_id select_field select_type where_field where_value where_type database reponse
+	
+	while getopts 'd:c:f:w:v:t:h' choice
+	do
+		case $choice in
+			d) database=$OPTARG ;;
+			c) collection_id=$OPTARG ;;
+			f) select_field=$OPTARG ;;
+			g) select_type=$OPTARG ;;
+			w) where_field=$OPTARG ;;
+			v) where_value=$OPTARG ;;
+			t) where_type=$OPTARG ;;
+			h) echo "Usage: firestore_get_fields_from_collection [ -d database ] -c collection_id -f select_field -g select_type -w where_field -v where_value [-t where_type] [-h]"; return 
+		esac
+	done
+
+	if [[ -z "$collection_id" || -z "$select_field" || -z "$where_field" || -z "$where_value" ]]; then
+		firestore_get_fields_from_collection -h
+		return
+	fi
+
+	database=${database:-$FIRESTORE_DEFAULT_DATABASE}
+	where_type=${where_type:-"stringValue"}
+	select_type=${select_type:-"stringValue"}
+
+
+	if ! [ -e $FIREBASE_AUTH_TOKEN_DB ]; then
+		echo "Initing Firebase auth token db file"
+		_firebase_get_auth_token > $FIREBASE_AUTH_TOKEN_DB
+	fi
+
+	token=`cat $FIREBASE_AUTH_TOKEN_DB`
+	response=`_firestore_run_query $collection_id $select_field $where_field $where_value $token $where_type $database`
+	response_code=`echo "$response" | awk 'NR==1{print $2}'`
+
+	if [ $response_code == "401" ]; then #Unautohrized 
+		_firebase_get_auth_token > $FIREBASE_AUTH_TOKEN_DB
+		token=`cat $FIREBASE_AUTH_TOKEN_DB`
+		response=`_firestore_run_query $collection_id $select_field $where_field $where_value $token $where_type $database`
+		response_code=`echo "$response" | awk 'NR==1{print $2}'`
+	fi 
+
+	if [ $response_code == "200" ]; then
+		echo "$response" | tr -d '\r' | awk -v RS= 'END{print $0}' | jq -r ".[].document.fields.$select_field.$select_type"
+	else
+		echo "Something went wrong,  reponse = $response"
+	fi
+}
+
+
+_firestore_run_query() {
+	local collection_id select_field where_field where_value where_type 
+	collection_id=$1
+	select_field=$2
+	where_field=$3
+	where_value=$4
+	token=$5
+	where_type=$6
+	database=$7
+
+	curl -s -i -X POST "$FIRESTORE_API_URL/v1/projects/$FIREBASE_PROJECT_ID/databases/$database/documents:runQuery" \
+	-H "Authorization: Bearer $token" \
+	-H "Content-Type: application/json" \
+	-d "
+	{
+	  \"structuredQuery\": {
+	    \"select\": {
+	      \"fields\": [
+	        {
+	          \"fieldPath\": \"$select_field\"
+	        }
+	      ]
+	    },
+	    \"from\": [
+	      {
+	        \"collectionId\": \"$collection_id\",
+	        \"allDescendants\": false
+	      }
+	    ],
+	    \"where\": {
+	      \"fieldFilter\": {
+	        \"field\": {
+	          \"fieldPath\": \"$where_field\"
+	        },
+	        \"op\": \"EQUAL\",
+	        \"value\": {
+	          \"$where_type\": \"$where_value\"
+	        }
+	      }
+	    }
+	  }
+	}"
+}
+
+
+_firebase_get_auth_token() {
+	curl -s -X POST "$FIREBASE_AUTH_URL?key=$FIREBASE_APP_KEY" -H 'Content-Type: application/json' \
+	-d "{
+		\"email\": \"$FIREBASE_APP_EMAIL\",
+		\"password\": \"$FIREBASE_APP_PASSWORD\",
+		\"returnSecureToken\": true}" | jq -r '.idToken'
+}
+
+
+
+

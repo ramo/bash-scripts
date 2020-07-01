@@ -226,11 +226,16 @@ get_pr_url() {
 			p) project_name=$OPTARG ;;
 			n) pr_number=$OPTARG ;;
 			u) web_pr_url=$OPTARG ;;
-			h) echo "Usage: get_pr_url [ -u web_pr_url ] [ -p project_name  -n pr_number ]"
+			h) echo "Usage: get_pr_url [ -u web_pr_url ] [ -p project_name  -n pr_number ]"; return
 		esac
 	done
 	
-	if ! [ -z $web_pr_url ]; then
+	if [[ -z "$web_pr_url" ]] && [[ -z "$project_name" || -z "$pr_number" ]]; then
+		get_pr_url -h
+		return
+	fi
+	
+	if ! [ -z "$web_pr_url" ]; then
 		project_name=`echo $web_pr_url | cut -d\/ -f5`
 		pr_number=`echo $web_pr_url | cut -d\/ -f7`
 	fi
