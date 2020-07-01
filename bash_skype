@@ -21,7 +21,12 @@ export SKYPE_AUTH_TOKEN_DB="/tmp/.skype_get_auth_token.db"
 
 skype_send_chat() {
 	local conversation_id message token OPTIND choice
-	
+
+	enabled=`echo $- | grep -o H | wc -l`
+	if [[ $enabled == 1 ]]; then
+		set +H #Fix for "!" problem by disabling the history expansion
+	fi
+
 	while getopts 'c:m:h' choice
 	do
 		case $choice in
@@ -30,6 +35,10 @@ skype_send_chat() {
 			h) echo "Usage: skype_send_chat -c conversation_id -m message [-h]"; return 
 		esac
 	done
+
+	if [[ $enabled == 1 ]]; then
+		set -H #Restore the bash state
+	fi
 
 	if [[ -z "$conversation_id" || -z "$message" ]]; then
 		skype_send_chat -h
@@ -42,18 +51,20 @@ skype_send_chat() {
 	fi
 
 	token=`cat $SKYPE_AUTH_TOKEN_DB`
-	response_status=`_skype_send_message "$conversation_id" "$message" "$token"`
+	response=`_skype_send_message "$conversation_id" "$message" "$token"`
+	response_code=`echo "$response" | awk 'NR==1{print $2}'`
 
-	if [ $response_status == "401" ]; then #Unautohrized 
+	if [ $response_code == "401" ]; then #Unautohrized
 		_skype_get_auth_token > $SKYPE_AUTH_TOKEN_DB
 		token=`cat $SKYPE_AUTH_TOKEN_DB`
-		response_status=`_skype_send_message "$conversation_id" "$message" "$token"`
+		response=`_skype_send_message "$conversation_id" "$message" "$token"`
+		response_code=`echo "$response" | awk 'NR==1{print $2}'`
 	fi 
 
-	if [ $response_status == "201" ]; then
+	if [ $response_code == "201" ]; then
 		echo "Skype message has been sent successfully."
 	else
-		echo "Something went wrong, the message is not sent. reponse code = $response_status"
+		echo "Something went wrong, the message is not sent. reponse = $response"
 	fi
 }
 
@@ -67,12 +78,23 @@ _skype_get_auth_token() {
 
 _skype_send_message() {
 	local message conversation_id toekn url payload token
+
+	enabled=`echo $- | grep -o H | wc -l`
+	if [[ $enabled == 1 ]]; then
+		set +H #Fix for "!" problem by disabling the history expansion
+	fi
+
 	conversation_id="$1"
 	message="$2"
 	token="$3"
 	url="$SKYPE_BOT_API_URL/v3/conversations/$conversation_id/activities"
 	payload="{\"type\": \"message\", \"text\": \"$message\"}"
-	curl -s -i -X POST -H "Authorization: Bearer $token" -H "Content-Type: application/json" "$url" -d "$payload" | awk 'NR==1{print $2}'
+	
+	if [[ $enabled == 1 ]]; then
+		set -H #Restore the bash state
+	fi
+
+	curl -s -i -X POST -H "Authorization: Bearer $token" -H "Content-Type: application/json" "$url" -d "$payload"
 }
 
 
