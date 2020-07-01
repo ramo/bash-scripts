@@ -16,7 +16,7 @@ export FIREBASE_APP_EMAIL=
 export FIREBASE_APP_PASSWORD=
 
 export FIREBASE_AUTH_URL="https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword"
-export FIREBASE_AUTH_TOKEN_DB=/tmp/.firebase_get_auth_token.db
+export FIREBASE_AUTH_TOKEN_DB="/tmp/.firebase_get_auth_token.db"
 export FIRESTORE_DEFAULT_DATABASE="(default)"
 export FIRESTORE_API_URL="https://firestore.googleapis.com"
 
