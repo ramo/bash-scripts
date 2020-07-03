@@ -49,7 +49,6 @@ firestore_get_fields_from_collection() {
 
 
 	if ! [ -e $FIREBASE_AUTH_TOKEN_DB ]; then
-		echo "Initing Firebase auth token db file"
 		_firebase_get_auth_token > $FIREBASE_AUTH_TOKEN_DB
 	fi
 

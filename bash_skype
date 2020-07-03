@@ -36,7 +36,6 @@ skype_send_chat() {
 	fi
 
 	if ! [ -e $SKYPE_AUTH_TOKEN_DB ]; then
-		echo "Initing Skype auth token db file"
 		_skype_get_auth_token > $SKYPE_AUTH_TOKEN_DB
 	fi
 
