@@ -257,13 +257,23 @@ gh_add_pr_reviewers() {
 	call_github -u $url -p "$payload" -m POST | jq -r '.requested_reviewers[].login'
 }
 
-
 gh_get_pr_participants() {
-	local project_name pr_number url
+	local project_name pr_number url pr_participants pr_json_data commenters additional_urls
 	project_name=$1
 	pr_number=$2
 	url="$GITHUB_API_URL/$project_name/pulls/$pr_number"
-	call_github -u $url | jq -r '.user.login,.requested_reviewers[].login,.assignees[].login' | sort | uniq
+	pr_json_data=`call_github -u $url`
+	pr_participants=`echo "$pr_json_data" | jq -r '.user.login,.requested_reviewers[].login,.assignees[].login'`
+	
+	additional_urls=`echo "$pr_json_data" | jq -r '._links.review_comments.href,._links.comments.href'`
+	additional_urls=`echo "$additional_urls";echo "$url/reviews"`
+	for url in `echo "$additional_urls"`; do
+		commenters=`call_github -u $url | jq -r '.[].user.login'`
+		if ! [[ -z $commenters || $commenters == null ]]; then
+			pr_participants=`echo "$pr_participants";echo "$commenters"`
+		fi
+	done
+	echo "$pr_participants" | sort | uniq
 }
 
 gh_search_branches() {
