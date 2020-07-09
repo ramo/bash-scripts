@@ -292,6 +292,63 @@ gh_delete_branch() {
 	call_github -m DELETE -u $url
 }
 
+gh_extract_pr_details_from_webhook_payload() {
+	local x_github_event json_payload actor pr_number message comment review_state
+	x_github_event=$1
+	json_payload=$2
+
+	actor=`echo "$json_payload" | jq -r '.sender.login'`
+	case $x_github_event in
+		issue_comment)
+			pr_number=`echo "$json_payload" | jq -r '.issue.number'`
+			comment=`echo "$json_payload" | jq -r '.comment.body'`
+			message="$actor commented, \"$comment\""
+			;;
+		
+		pull_request_review)
+			pr_number=`echo "$json_payload" | jq -r '.pull_request.number'`
+			review_state=`echo "$json_payload" | jq -r '.review.state'` | tr '_' ' '
+			message="PR Review $review_state by $actor"
+			;;
+		
+		pull_request)
+			gh_extract_pr_message_from_webhook_payload_pull_request "$json_payload"
+			return
+			;;
+		
+		*) echo "$x_github_event is not supported!"
+			return
+			;;
+	esac
+
+	echo "{ \"pr_number\": \"$pr_number\", \"message\": \"$message\" }"
+}
+
+gh_extract_pr_message_from_webhook_payload_pull_request() {
+	local json_payload pr_number action actor message is_merged
+	json_payload=$1
+	pr_number=`echo "$json_payload" | jq -r '.pull_request.number'`
+	action=`echo "$json_payload" | jq -r '.action'`
+	actor=`echo "$json_payload" | jq -r '.sender.login'`
+
+	case $action in
+		assigned|review_requested)
+			message="Review requested by $actor"
+			;;
+		opened|reopened|synchronize) 
+			message="PR has been updated by $actor. Kindly check if any action required from you. Thanks."
+			;;
+		closed)
+			is_merged=`echo "$json_payload" | jq -r '.pull_request.merged'`
+			if [[ $is_merged == "true" ]]; then
+				message="PR has been merged by $actor"
+			else
+				message="PR has been closed by $actor"
+			fi
+	esac
+	echo "{ \"pr_number\": \"$pr_number\", \"message\": \"$message\" }"
+}
+
 call_github() {
 	local url method payload delay flags auth_token c OPTIND OPTARG
 
