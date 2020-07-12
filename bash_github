@@ -335,8 +335,13 @@ gh_extract_pr_message_from_webhook_payload_pull_request() {
 	actor=`echo "$json_payload" | jq -r '.sender.login'`
 
 	case $action in
-		assigned|review_requested)
-			message="Review requested by $actor"
+		review_requested)
+			reviewer=`echo "$json_payload" | jq -r '.requested_reviewer.login'`
+			message="$reviewer's review requested for this PR by $actor"
+			;;
+		assigned)
+			assignee=`echo "$json_payload" | jq -r '.assignee.login'`
+			message="$assignee assigned for this PR by $actor"
 			;;
 		opened|reopened|synchronize) 
 			message="PR has been updated by $actor. Kindly check if any action required from you. Thanks."
@@ -348,9 +353,15 @@ gh_extract_pr_message_from_webhook_payload_pull_request() {
 			else
 				message="PR has been closed by $actor"
 			fi
+			;;
+		*) 
+			a=`echo $action | tr '_' ' '`
+			message="$a performed on PR by $actor"
+			;;
 	esac
 	echo "{ \"repo_name\": \"$repo_name\", \"pr_number\": \"$pr_number\", \"message\": \"$message\" }"
 }
+
 
 call_github() {
 	local url method payload delay flags auth_token c OPTIND OPTARG
