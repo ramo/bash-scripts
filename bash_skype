@@ -72,7 +72,10 @@ _skype_send_message() {
 	message="$2"
 	token="$3"
 	url="$SKYPE_BOT_API_URL/v3/conversations/$conversation_id/activities"
-	payload="{\"type\": \"message\", \"text\": \"$message\"}"
+	payload=$(jq -n \
+		--arg t "message" \
+		--arg m "$message" \
+		'{type: $t, text: $m}')
 	
 	curl -s -i -X POST -H "Authorization: Bearer $token" -H "Content-Type: application/json" "$url" -d "$payload"
 }
