@@ -360,7 +360,7 @@ gh_extract_pr_message_from_webhook_payload_pull_request() {
 			;;
 		*) 
 			a=`echo $action | tr '_' ' '`
-			message="$a performed on PR by $actor"
+			message="PR $a by $actor"
 			;;
 	esac
 
