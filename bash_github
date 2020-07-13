@@ -303,7 +303,7 @@ gh_extract_pr_details_from_webhook_payload() {
 		issue_comment)
 			pr_number=`echo "$json_payload" | jq -r '.issue.number'`
 			comment=`echo "$json_payload" | jq -r '.comment.body'`
-			message=`echo "$actor commented, \"$comment\"" | tr '"' "'"`
+			message="$actor commented that, $comment"
 			;;
 		
 		pull_request_review)
@@ -322,7 +322,11 @@ gh_extract_pr_details_from_webhook_payload() {
 			;;
 	esac
 
-	echo "{ \"repo_name\": \"$repo_name\", \"pr_number\": \"$pr_number\", \"message\": \"$message\" }"
+	echo "$(jq -n \
+		--arg prn "$pr_number" \
+		--arg rn "$repo_name" \
+		--arg msg "$message" \
+		'{pr_number: $prn, repo_name: $rn, message: $msg}')"
 }
 
 gh_extract_pr_message_from_webhook_payload_pull_request() {
@@ -359,7 +363,12 @@ gh_extract_pr_message_from_webhook_payload_pull_request() {
 			message="$a performed on PR by $actor"
 			;;
 	esac
-	echo "{ \"repo_name\": \"$repo_name\", \"pr_number\": \"$pr_number\", \"message\": \"$message\" }"
+
+	echo "$(jq -n \
+		--arg prn "$pr_number" \
+		--arg rn "$repo_name" \
+		--arg msg "$message" \
+		'{pr_number: $prn, repo_name: $rn, message: $msg}')"
 }
 
 
