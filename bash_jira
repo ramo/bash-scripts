@@ -53,7 +53,9 @@ jira_get_siblings() {
 }
 
 jira_get_issue_json() {
-	curl -s --user "$JIRA_USERNAME:$JIRA_TOKEN" "$JIRA_URL/rest/api/3/issue/$1"
+	local issue_key
+	issue_key=`echo "$1" | sed 's/[^a-zA-Z0-9]/-/g' | tr -s '-' '-' | cut -d- -f1-2`
+	curl -s --user "$JIRA_USERNAME:$JIRA_TOKEN" "$JIRA_URL/rest/api/3/issue/$issue_key"
 }
 
 
