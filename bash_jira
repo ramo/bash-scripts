@@ -15,7 +15,7 @@ jira_get_issue_title() {
 		return
 	fi
 
-	jira_get_issue_json $1 | jq -r '.fields.summary'
+	_jira_get_issue_json $1 | jq -r '.fields.summary'
 }
 
 
@@ -25,7 +25,7 @@ jira_get_parent_issue_key() {
 		return
 	fi
 
-	jira_get_issue_json $1 | jq -r '.fields.parent.key'
+	_jira_get_issue_json $1 | jq -r '.fields.parent.key'
 }
 
 
@@ -35,7 +35,7 @@ jira_get_issue_assignee() {
 		return
 	fi
 
-	jira_get_issue_json $1 | jq -r '.fields.assignee.accountId'	
+	_jira_get_issue_json $1 | jq -r '.fields.assignee.accountId'	
 }
 
 jira_get_siblings() {
@@ -48,17 +48,23 @@ jira_get_siblings() {
 	parent_issue=`jira_get_parent_issue_key $1`
 
 	if ! [[ -z $parent_issue || $parent_issue == null ]]; then
-		jira_get_issue_json $parent_issue | jq  -r '.fields.subtasks[] | .key + " " + .fields.summary' 
+		_jira_get_issue_json $parent_issue | jq  -r '.fields.subtasks[] | .key + " " + .fields.summary' 
 	fi
 }
 
-jira_get_issue_json() {
-	local issue_key
-	issue_key=`echo "$1" | sed 's/[^a-zA-Z0-9]/-/g' | tr -s '-' '-' | cut -d- -f1-2`
-	curl -s --user "$JIRA_USERNAME:$JIRA_TOKEN" "$JIRA_URL/rest/api/3/issue/$issue_key"
+jira_filter_issue_key() {
+	if [[ $# -ne 1 ]]; then
+		echo "Usage: jira_filter_issue_key <issue-id>"
+		return
+	fi
+	
+	echo "$1" | sed 's/[^a-zA-Z0-9]/-/g' | tr -s '-' | cut -d- -f1-2
 }
 
-
-
+_jira_get_issue_json() {
+	local issue_key
+	issue_key=`jira_filter_issue_key "$1"`
+	curl -s --user "$JIRA_USERNAME:$JIRA_TOKEN" "$JIRA_URL/rest/api/3/issue/$issue_key"
+}
 
 
