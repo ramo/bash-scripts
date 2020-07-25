@@ -61,6 +61,24 @@ jira_filter_issue_key() {
 	echo "$1" | sed 's/[^a-zA-Z0-9]/-/g' | tr -s '-' | cut -d- -f1-2
 }
 
+jira_get_issue_type() {
+	if [[ $# -ne 1 ]]; then
+		echo "Usage: jira_get_issue_type <issue-id>"
+		return
+	fi
+
+	_jira_get_issue_json $1 | jq -r '.fields.issuetype.name'	
+}
+
+jira_get_outward_linked_issue() {
+	if [[ $# -ne 1 ]]; then
+		echo "Usage: jira_get_outward_linked_issue <issue-id>"
+		return
+	fi
+
+	_jira_get_issue_json $1 | jq -r '.fields.issuelinks[0].outwardIssue.key'
+}
+
 _jira_get_issue_json() {
 	local issue_key
 	issue_key=`jira_filter_issue_key "$1"`
