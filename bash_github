@@ -18,7 +18,7 @@ safe_merge() {
 	target_branch=$3
 	
 	echo "Checking $source_branch -> $target_branch in $project_name"
-	files_diff=`compare_git_branches $project_name $source_branch $target_branch`
+	files_diff=`gh_get_changed_files_count $project_name $source_branch $target_branch`
 	if [[ files_diff -eq 0 ]]; then
 		echo "Nothing to merge. Skipping $source_branch -> $target_branch in $project_name"
 		return
@@ -197,15 +197,26 @@ add_pr_labels() {
 	project_name=$1;shift
 	pr_number=$1;shift
 	labels="$@"
+
+	echo "Labels = $labels"
 	url="$GITHUB_API_URL/$project_name/issues/$pr_number/labels"
 	for L in $labels; do a="$a \"$L\""; done
+	
+	echo "a = $a"
+
 	b=`echo $a | sed 's/\ /,/g'`
+	
+	echo "b = $b"
+
 	payload="{\"labels\": ["$b"]}"
+
+
+	echo "payload = $payload"
 
 	call_github -u $url -p "$payload" -m POST | jq  -r '.[].name'
 }
 
-compare_git_branches() {
+gh_get_changed_files_count() {
 	local project_name source target url
 	project_name=$1
 	source=$2
@@ -254,7 +265,9 @@ gh_add_pr_reviewers() {
 	b=`echo $a | sed 's/\ /,/g'`
 	payload="{\"reviewers\": ["$b"]}"
 
-	call_github -u $url -p "$payload" -m POST | jq -r '.requested_reviewers[].login'
+	echo "payload = $payload"
+
+	call_github -u $url -p "$payload" -m POST #| jq -r '.requested_reviewers[].login'
 }
 
 gh_get_pr_participants() {
@@ -369,6 +382,15 @@ gh_extract_pr_message_from_webhook_payload_pull_request() {
 		--arg rn "$repo_name" \
 		--arg msg "$message" \
 		'{pr_number: $prn, repo_name: $rn, message: $msg}')"
+}
+
+gh_compare_branches() {
+	local project source target url
+	project=$1
+	source=$2
+	target=$3
+	url=`get_web_pr_url "$GITHUB_API_URL/$project/compare/$source...$target"`
+	open_url "$url"
 }
 
 

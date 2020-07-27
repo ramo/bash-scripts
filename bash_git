@@ -70,18 +70,7 @@ gp() {
 	fi
 
 	git_url="$GIT_BASE_URL/$ORG/$PROJECT/compare/$TARGET...$SRC?expand=1&labels=$DEFAULT_PR_LABEL&title=$pr_title"
-
-	case `uname -s` in
-		Darwin)
-			open $git_url
-			;;
-		Linux)
-			xdg-open $git_url
-			;;
-		*)
-			echo "Can't open browser. Goto $git_url"
-			;;
-	esac
+	open_url "$git_url"
 }
 
 

@@ -28,3 +28,25 @@ rep() {
 		$1 $i	
 	done < $2	
 }
+
+open_url() {
+	if [[ $# != 1 ]]; then
+		echo "Usage: open_url <url>"
+		return
+	fi
+
+	local url
+	url=$1
+
+	case `uname -s` in
+		Darwin)
+			open $url
+			;;
+		Linux)
+			xdg-open $url
+			;;
+		*)
+			echo "Can't open browser. Goto $url"
+			;;
+	esac
+}
