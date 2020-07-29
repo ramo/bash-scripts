@@ -15,7 +15,7 @@ jira_get_issue_title() {
 		return
 	fi
 
-	_jira_get_issue_json $1 | jq -r '.fields.summary'
+	jira_get_issue_property -i $1 -p issue_title
 }
 
 
@@ -25,7 +25,7 @@ jira_get_parent_issue_key() {
 		return
 	fi
 
-	_jira_get_issue_json $1 | jq -r '.fields.parent.key'
+	jira_get_issue_property -i $1 -p parent_key
 }
 
 
@@ -35,7 +35,7 @@ jira_get_issue_assignee() {
 		return
 	fi
 
-	_jira_get_issue_json $1 | jq -r '.fields.assignee.accountId'	
+	jira_get_issue_property -i $1 -p issue_assignee
 }
 
 jira_get_siblings() {
@@ -48,8 +48,26 @@ jira_get_siblings() {
 	parent_issue=`jira_get_parent_issue_key $1`
 
 	if ! [[ -z $parent_issue || $parent_issue == null ]]; then
-		_jira_get_issue_json $parent_issue | jq  -r '.fields.subtasks[] | .key + " " + .fields.summary' 
+		jira_get_issue_property -i $parent_issue -p siblings
 	fi
+}
+
+jira_get_issue_type() {
+	if [[ $# -ne 1 ]]; then
+		echo "Usage: jira_get_issue_type <issue-id>"
+		return
+	fi
+
+	jira_get_issue_property -i $1 -p issue_type
+}
+
+jira_get_outward_linked_issue() {
+	if [[ $# -ne 1 ]]; then
+		echo "Usage: jira_get_outward_linked_issue <issue-id>"
+		return
+	fi
+
+	jira_get_issue_property -i $1 -p linked_issue
 }
 
 jira_filter_issue_key() {
@@ -61,23 +79,55 @@ jira_filter_issue_key() {
 	echo "$1" | sed 's/[^a-zA-Z0-9]/-/g' | tr -s '-' | cut -d- -f1-2
 }
 
-jira_get_issue_type() {
-	if [[ $# -ne 1 ]]; then
-		echo "Usage: jira_get_issue_type <issue-id>"
+
+jira_get_issue_property() {
+	local issue_id issue_json property c OPTIND OPTARG
+	while getopts 'i:j:p:h' c
+	do
+		case $c in
+			i) issue_id=$OPTARG ;;
+			j) issue_json="$OPTARG" ;;
+			p) property="$OPTARG" ;;
+			h) echo "Usage: jira_get_issue_property -p property [ -i issue_id ] [ -j issue_json ]"; return 
+		esac
+	done
+
+	if [[ -z "$issue_id" && -z "$issue_json" ]] || [[ -z "$property" ]]; then
+		jira_get_issue_property -h 
 		return
 	fi
 
-	_jira_get_issue_json $1 | jq -r '.fields.issuetype.name'	
-}
-
-jira_get_outward_linked_issue() {
-	if [[ $# -ne 1 ]]; then
-		echo "Usage: jira_get_outward_linked_issue <issue-id>"
-		return
+	if ! [[ -z "$issue_id" ]]; then
+		issue_json=`_jira_get_issue_json $issue_id`
 	fi
 
-	_jira_get_issue_json $1 | jq -r '.fields.issuelinks[0].outwardIssue.key'
+	_jira_get_issue_property_from_json "$issue_json" "$property"
 }
+
+
+_jira_get_issue_property_from_json() {
+	local issue_json property
+	issue_json="$1"
+	property="$2"
+
+	case $property in
+		issue_type) 
+			echo "$issue_json" | jq -r '.fields.issuetype.name' ;;
+		linked_issue)
+			echo "$issue_json" | jq -r '.fields.issuelinks[0].outwardIssue.key' ;;
+		parent_key)
+			echo "$issue_json" | jq -r '.fields.parent.key' ;;
+		issue_title)
+			echo "$issue_json" | jq -r '.fields.summary' ;;
+		issue_assignee)
+			echo "$issue_json" | jq -r '.fields.assignee.accountId'	;;
+		siblings)
+			echo "$issue_json" | jq  -r '.fields.subtasks[] | .key + " " + .fields.summary'	;;		
+		*)
+			echo "Error: $property is not implemented" ;;
+	esac
+}
+
 
 _jira_get_issue_json() {
 	local issue_key
