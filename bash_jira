@@ -98,12 +98,17 @@ jira_get_issue_property() {
 	fi
 
 	if ! [[ -z "$issue_id" ]]; then
-		issue_json=`_jira_get_issue_json $issue_id`
+		issue_json=`jira_get_issue_json $issue_id`
 	fi
 
 	_jira_get_issue_property_from_json "$issue_json" "$property"
 }
 
+jira_get_issue_json() {
+	local issue_key
+	issue_key=`jira_filter_issue_key "$1"`
+	curl -s --user "$JIRA_USERNAME:$JIRA_TOKEN" "$JIRA_URL/rest/api/3/issue/$issue_key"
+}
 
 _jira_get_issue_property_from_json() {
 	local issue_json property
@@ -127,12 +132,4 @@ _jira_get_issue_property_from_json() {
 			echo "Error: $property is not implemented" ;;
 	esac
 }
-
-
-_jira_get_issue_json() {
-	local issue_key
-	issue_key=`jira_filter_issue_key "$1"`
-	curl -s --user "$JIRA_USERNAME:$JIRA_TOKEN" "$JIRA_URL/rest/api/3/issue/$issue_key"
-}
-
 
