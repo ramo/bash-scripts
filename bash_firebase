@@ -24,17 +24,17 @@ export FIRESTORE_API_URL="https://firestore.googleapis.com"
 firestore_get_fields_from_collection() {
 	local OPTIND OPTARG choice collection_id select_field select_type where_field where_value where_type database reponse
 	
-	while getopts 'd:c:f:w:v:t:h' choice
+	while getopts 'd:c:s:w:v:t:h' choice
 	do
 		case $choice in
 			d) database=$OPTARG ;;
 			c) collection_id=$OPTARG ;;
-			f) select_field=$OPTARG ;;
+			s) select_field=$OPTARG ;;
 			g) select_type=$OPTARG ;;
 			w) where_field=$OPTARG ;;
 			v) where_value=$OPTARG ;;
 			t) where_type=$OPTARG ;;
-			h) echo "Usage: firestore_get_fields_from_collection [ -d database ] -c collection_id -f select_field -g select_type -w where_field -v where_value [-t where_type] [-h]"; return 
+			h) echo "Usage: firestore_get_fields_from_collection [ -d database ] -c collection_id -s select_field -g select_type -w where_field -v where_value [-t where_type] [-h]"; return 
 		esac
 	done
 
