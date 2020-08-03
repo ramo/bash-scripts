@@ -8,7 +8,8 @@
 # TOKEN_DEV_OPS - GitHub token of main DevOps account
 # TOKEN_DEV_OPS_1 - GitHub token of subordinate DevOps account-1
 # TOKEN_DEV_OPS_2 - GitHub token of subordinate DevOps account-2
-# 
+# DEFAULT_GITHUB_API_DELAY - Default value for applying delay between subsequence githup api calls.
+
 
 safe_merge() {
 	local project_name source_branch target_branch source_helper_branch target_helper_branch files_diff ts te
@@ -411,7 +412,7 @@ call_github() {
 	done
 
 	if [ -z $delay ]; then 
-		delay=10
+		delay=${DEFAULT_GITHUB_API_DELAY-10}
 	fi
 
 	if [ -z $method ]; then
