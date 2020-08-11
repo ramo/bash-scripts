@@ -394,6 +394,14 @@ gh_compare_branches() {
 	open_url "$url"
 }
 
+gh_get_commit_date() {
+	local project_nme commit_sha url
+	project_name=$1
+	commit_sha=$2
+	url="$GITHUB_API_URL/$project_name/commits/$commit_sha"
+	call_github -u $url | jq -r '.commit.author.date' 
+}
+
 
 call_github() {
 	local url method payload delay flags auth_token c OPTIND OPTARG
