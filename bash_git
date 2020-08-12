@@ -1,5 +1,17 @@
 #!/bin/bash
 
+##############################################################
+
+_git_current_branch() {
+	git branch | awk '/\*/ {print $NF}'
+}
+
+export DEFAULT_PARENT_BRANCH_PROVIDER=_git_current_branch
+
+
+###############################################################
+
+
 # Create a git branch (local & remote) under a given parent.
 # If parent not specified tries to read parent value from 
 # DEFAULT_PARENT_BRANCH environment variable, if this is not set
@@ -10,7 +22,7 @@ gb() {
 		echo "Usage: gb <branch-name> [parent-branch-name (optional)]"
 		return
 	fi
-	parent=${2:-$DEFAULT_PARENT_BRANCH}
+	parent=${2:-"$($DEFAULT_PARENT_BRANCH_PROVIDER)"}
 	git checkout $parent 
 	git pull
 	git checkout -b $1 refs/heads/$parent
