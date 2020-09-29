@@ -60,9 +60,10 @@ direct_merge() {
 }
 
 approve_and_merge_pr() {
-	local web_pr_url pr_url is_pb
+	local web_pr_url pr_url is_pb merge_method
 	pr_url=$1
 	is_pb=$2
+	merge_method="${3:-merge}"
 	web_pr_url=`get_web_pr_url $pr_url`
 
 	echo "Processing PR = $pr_url and is_protected = $is_pb"
@@ -77,7 +78,7 @@ approve_and_merge_pr() {
 
 	[[ $is_pb == "true" ]] && echo "need to approve" && approve_pr $pr_url
 	
-	if exec_inc_delay 5 30 merge_pr $pr_url; then
+	if exec_inc_delay 5 30 merge_pr $pr_url $merge_method; then
 		echo "Successfully merged $web_pr_url"
 	else
 		echo "Unable to merge the PR: $web_pr_url. Please check logs."
@@ -154,10 +155,12 @@ approve_pr() {
 }
 
 merge_pr() {
-	local pr_url response_code
+	local pr_url response_code merge_method payload
 	pr_url=$1
+	merge_method="${2:-merge}"
 	echo "Merging the PR = `get_web_pr_url $pr_url`"
-	response_code=`call_github -u "$pr_url/merge" -m PUT -f '-s -i' | awk 'NR==1{print $2}'`
+	payload="{\"merge_method\": \"$merge_method\"}"
+	response_code=`call_github -u "$pr_url/merge" -m PUT -f '-s -i' -p "$payload" | awk 'NR==1{print $2}'`
 	if [[ $response_code == "200" ]]; then
 		true
 	else
