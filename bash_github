@@ -405,6 +405,13 @@ gh_get_commit_date() {
 	call_github -u $url | jq -r '.commit.author.date' 
 }
 
+gh_get_all_branches_in_open_prs() {
+	local project_name url
+	project_name=$1
+	url="$GITHUB_API_URL/$project_name/pulls"
+	call_github -u $url | jq -r '.[].head.ref, .[].base.ref' | sort | uniq
+}
+
 
 call_github() {
 	local url method payload delay flags auth_token c OPTIND OPTARG
