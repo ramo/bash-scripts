@@ -181,7 +181,7 @@ gtl() {
 
 # Swith to home branch defined by GIT_HOME_BRANCH environment variable.
 # and pull the latest changes.
-gh() {
+ghome() {
 	git checkout $GIT_HOME_BRANCH
 	git pull
 }
