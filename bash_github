@@ -221,7 +221,7 @@ add_pr_labels() {
 }
 
 
-get_pr_labels() {
+gh_get_pr_labels() {
 	local project_name pr_number url
 	project_name=$1
 	pr_number=$2
