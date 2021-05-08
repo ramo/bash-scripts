@@ -5,10 +5,12 @@
 # JSON reponse from GitHub rest API. Below environment variables need to
 # be configured for the tool to function.
 # GITHUB_API_URL - GitHub REST api URL 
-# TOKEN_DEV_OPS - GitHub token of main DevOps account
-# TOKEN_DEV_OPS_1 - GitHub token of subordinate DevOps account-1
-# TOKEN_DEV_OPS_2 - GitHub token of subordinate DevOps account-2
-# DEFAULT_GITHUB_API_DELAY - Default value for applying delay between subsequence githup api calls.
+# GITHUB_TOKEN - GitHub token of main DevOps account
+# GITHUB_API_DELAY - Default value for applying delay between subsequence githup api calls.
+# GITHUB_2PEER_APPROVAL_SIMULATION_ENABLED=true
+# GITHUB_TOKEN_01 - GitHub token of subordinate DevOps account-1
+# GITHUB_TOKEN_02 - GitHub token of subordinate DevOps account-2
+
 
 
 safe_merge() {
@@ -147,8 +149,10 @@ approve_pr() {
 
 	echo "Approving the PR = `get_web_pr_url $pr_url`"
 	
-	call_github -u "$pr_url/reviews" -p "$pr_approve_payload" -m POST  -a $TOKEN_DEV_OPS_1 > /dev/null
-	call_github -u "$pr_url/reviews" -p "$pr_approve_payload" -m POST  -a $TOKEN_DEV_OPS_2 > /dev/null
+	if [[ $GITHUB_2PEER_APPROVAL_SIMULATION_ENABLED == "true" ]]; then
+		call_github -u "$pr_url/reviews" -p "$pr_approve_payload" -m POST  -a $GITHUB_TOKEN_01 > /dev/null
+		call_github -u "$pr_url/reviews" -p "$pr_approve_payload" -m POST  -a $GITHUB_TOKEN_02 > /dev/null
+	fi
 
 	status_url=`call_github -u $pr_url  | jq -r '._links.statuses.href'`
 	call_github -u $status_url -p "$status_approve_payload" -m POST > /dev/null
@@ -439,7 +443,7 @@ call_github() {
 	done
 
 	if [ -z $delay ]; then 
-		delay=${DEFAULT_GITHUB_API_DELAY-10}
+		delay=${GITHUB_API_DELAY:-10}
 	fi
 
 	if [ -z $method ]; then
@@ -451,7 +455,7 @@ call_github() {
 	fi
 
 	if [ -z $auth_token ]; then
-		auth_token="$TOKEN_DEV_OPS"
+		auth_token="$GITHUB_TOKEN"
 	fi
 
 	sleep $delay
