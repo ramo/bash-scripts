@@ -4,8 +4,8 @@
 # See https://stedolan.github.io/jq/ for installing jq tool.
 # JSON reponse from JIRA rest API. Below environment variables need to
 # be configured for the tool to function.
-# JIRA_USERNAME - Email id of the JIRA account
-# JIRA_TOKEN - JIRA api token for the user account
+# JIRA_USR - Email id of the JIRA account
+# JIRA_PSW - JIRA password (or) api token for the user account
 # JIRA_URL - JIRA enterprise cloud URL
 
 # Helper method to get the JIRA issue title for given issue id. 
@@ -107,7 +107,7 @@ jira_get_issue_property() {
 jira_get_issue_json() {
 	local issue_key
 	issue_key=`jira_filter_issue_key "$1"`
-	curl -s --user "$JIRA_USERNAME:$JIRA_TOKEN" "$JIRA_URL/rest/api/3/issue/$issue_key"
+	curl -s --user "$JIRA_USR:$JIRA_PSW" "$JIRA_URL/rest/api/3/issue/$issue_key"
 }
 
 _jira_get_issue_property_from_json() {
