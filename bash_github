@@ -460,6 +460,13 @@ call_github() {
 
 	sleep $delay
 
+
+	if [[ "$DEBUG" == "true" ]]; then
+		echo "url = $url"
+		echo "payload = $payload"
+	fi
+
+
 	if [ -z "$payload" ]; then
 		curl $flags -X $method -H "Authorization: token $auth_token" -H "Content-Type: application/json" "$url" 
 	else
