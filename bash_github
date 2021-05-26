@@ -10,6 +10,8 @@
 # GITHUB_2PEER_APPROVAL_SIMULATION_ENABLED=true
 # GITHUB_TOKEN_01 - GitHub token of subordinate DevOps account-1
 # GITHUB_TOKEN_02 - GitHub token of subordinate DevOps account-2
+# GITHUB_AUTO_APPROVE_TEXT - Auto approve text to be put in PR approvals and status approvals
+# GITHUB_STATUS_CONTEXT - State context for the PR status approval
 
 
 
@@ -143,19 +145,35 @@ is_protected_branch() {
 approve_pr() {
 	local pr_url status_url pr_approve_payload status_approve_payload
 	pr_url=$1
-	
-	pr_approve_payload="{\"body\": \"Auto approved by DevOps.\", \"event\": \"APPROVE\"}"
-	status_approve_payload="{\"state\": \"success\", \"context\": \"jenkinsci/pr-merge\", \"description\": \"Auto approved by DevOps.\"}"
-
 	echo "Approving the PR = `get_web_pr_url $pr_url`"
 	
 	if [[ $GITHUB_2PEER_APPROVAL_SIMULATION_ENABLED == "true" ]]; then
+		pr_approve_payload="{\"body\": \"$GITHUB_AUTO_APPROVE_TEXT\", \"event\": \"APPROVE\"}"
 		call_github -u "$pr_url/reviews" -p "$pr_approve_payload" -m POST  -a $GITHUB_TOKEN_01 > /dev/null
 		call_github -u "$pr_url/reviews" -p "$pr_approve_payload" -m POST  -a $GITHUB_TOKEN_02 > /dev/null
 	fi
 
-	status_url=`call_github -u $pr_url  | jq -r '._links.statuses.href'`
-	call_github -u $status_url -p "$status_approve_payload" -m POST > /dev/null
+	notify_status_for_pr $pr_url "success" "$GITHUB_STATUS_CONTEXT" "$GITHUB_AUTO_APPROVE_TEXT"
+}
+
+notify_status_for_pr() {
+	local pr_url state context description pr_url status_payload status_url
+	pr_url=$1;shift
+	state=$1;shift
+	context=$1;shift
+	description="$@"
+	status_payload="{\"state\": \"$state\", \"context\": \"$context\", \"description\": \"$description\"}"
+	status_url=$(call_github -u $pr_url  | jq -r '._links.statuses.href')
+	call_github -u $status_url -p "$status_payload" -m POST > /dev/null
+}
+
+notify_status() {
+	local project_name pr_number pr_url
+	project_name=$1;shift
+	pr_number=$1;shift
+	args="$@"
+	pr_url=$(get_pr_url -p $project_name -n $pr_number)
+	notify_status_for_pr $pr_url $args
 }
 
 merge_pr() {
